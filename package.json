@@ -5,6 +5,7 @@
   "author": "James Flight <jamesflight2006@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "aws-sdk": "^2.238.1",
     "bluebird": "^3.5.1",
     "node-fetch": "^2.1.2",
     "ramda": "^0.25.0",

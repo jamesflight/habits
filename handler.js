@@ -2,6 +2,7 @@ const fetch = require('node-fetch');
 const R = require('ramda');
 const bluebird = require('bluebird');
 const url = require('url');
+var AWS = require("aws-sdk");
 
 const probabilityMap = {
   "default": 0.05,
@@ -38,20 +39,67 @@ module.exports.hello = (event, context, callback) => {
     .then(() => records);
   })
   .then((records) => {
-    return bluebird.all(R.map((record) => {
-      const formData = new url.URLSearchParams();
-      formData.append('amount', record.fields.Reward);
-      formData.append('destination_account_id', process.env.MONZO_ACCOUNT_ID);
-      formData.append('dedupe_id', record.id);
-      return fetch("https://api.monzo.com/pots/" + process.env.MONZO_POT_ID + "/withdraw", {
-        method: 'PUT',
-        headers: {
-          Authorization: 'Bearer ' + process.env.MONZO_ACCESS_TOKEN
-        },
-        body: formData
-      })
-      .then((res) => record)
-    }, R.reject((record) => ! record.fields.Reward || ! record.fields.Habit || ! record.fields["Time Spent"], records)));
+    return new Promise((res) => {
+      AWS.config.update({
+        region: "us-east-1",
+      });
+      
+      var docClient = new AWS.DynamoDB.DocumentClient();
+    
+      docClient.get({
+          TableName: "MonzoRefreshToken",
+          Key:{
+              "user_id": 1,
+          }
+      }, function(err, data) {
+          const formData = new url.URLSearchParams();
+          formData.append('grant_type', "refresh_token");
+          formData.append('client_id', process.env.MONZO_CLIENT_ID);
+          formData.append('client_secret', process.env.MONZO_CLIENT_SECRET);
+          formData.append('refresh_token', data.Item.refresh_token);
+          return fetch("https://api.monzo.com/oauth2/token", {
+              method: 'POST',
+              body: formData
+          })
+          .then((res) => res.json())
+          .then((json) => {
+            docClient.update({
+                  TableName: "MonzoRefreshToken",
+                  Key:{
+                      "user_id": 1,
+                  },
+                  UpdateExpression: "set refresh_token = :t",
+                  ExpressionAttributeValues:{
+                      ":t": json.refresh_token,
+                  },
+                  ReturnValues:"UPDATED_NEW"
+              }, (err, data) => {
+                res(json.access_token);
+              })
+          });
+      });
+    })
+    .then((token) => {
+      return bluebird.all(R.map((record) => {
+        const formData = new url.URLSearchParams();
+        formData.append('amount', record.fields.Reward);
+        formData.append('destination_account_id', process.env.MONZO_ACCOUNT_ID);
+        formData.append('dedupe_id', record.id);
+        return fetch("https://api.monzo.com/pots/" + process.env.MONZO_POT_ID + "/withdraw", {
+          method: 'PUT',
+          headers: {
+            Authorization: 'Bearer ' + token
+          },
+          body: formData
+        })
+        .then((res) => {
+          console.log("Monzo response", formData);
+          return res;
+        })
+        .then((res) => record)
+        .catch((e) => console.log(e));
+      }, R.reject((record) => ! record.fields.Reward || ! record.fields.Habit || ! record.fields["Time Spent"], records)));
+    });
   })
   .then((records) => {
     return bluebird.all(R.map((record) => {
@@ -71,6 +119,58 @@ module.exports.hello = (event, context, callback) => {
   .then(() => {
     callback(null, { message: 'Success' });
   });
+
+  // var promise = new Promise((res) => {
+  //   AWS.config.update({
+  //     region: "us-east-1",
+  //   });
+    
+  //   var docClient = new AWS.DynamoDB.DocumentClient();
+  
+  //   docClient.get({
+  //       TableName: "MonzoRefreshToken",
+  //       Key:{
+  //           "user_id": 1,
+  //       }
+  //   }, function(err, data) {
+  //       if (err) {
+  //           console.error("Unable to read item. Error JSON:", JSON.stringify(err, null, 2));
+  //       } else {
+  //           console.log("GetItem succeeded:", JSON.stringify(data, null, 2));
+  //       }
+  //       const formData = new url.URLSearchParams();
+  //       formData.append('grant_type', "refresh_token");
+  //       formData.append('client_id', process.env.MONZO_CLIENT_ID);
+  //       formData.append('client_secret', process.env.MONZO_CLIENT_SECRET);
+  //       formData.append('refresh_token', data.Item.refresh_token);
+  //       return fetch("https://api.monzo.com/oauth2/token", {
+  //           method: 'POST',
+  //           body: formData
+  //       })
+  //       .then((res) => res.json())
+  //       .then((json) => {
+  //         console.log("json", json)
+  //         docClient.update({
+  //               TableName: "MonzoRefreshToken",
+  //               Key:{
+  //                   "user_id": 1,
+  //               },
+  //               UpdateExpression: "set refresh_token = :t",
+  //               ExpressionAttributeValues:{
+  //                   ":t": json.refresh_token,
+  //               },
+  //               ReturnValues:"UPDATED_NEW"
+  //           }, (err, data) => {
+  //             console.log(err, data);
+  //             res(json.access_token);
+  //           })
+  //       });
+  //   });
+  // })
+  // .then((res) => {
+  //   console.log('result', res)
+  //   callback(null, { message: 'Success' });
+  // })
   
 
   // Use this code if you don't use the http event with the LAMBDA-PROXY integration
@@ -80,6 +180,7 @@ module.exports.hello = (event, context, callback) => {
 const generateReward = (duration) => {
   const rand = Math.random();
   const cutoff = probabilityMap[duration] ? probabilityMap[duration] : 0.05;
+  return 3;
   if (rand < cutoff) {
     const pence = Math.round(Math.random() * 200);
     return pence;
