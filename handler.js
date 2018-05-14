@@ -39,6 +39,12 @@ module.exports.hello = (event, context, callback) => {
     .then(() => records);
   })
   .then((records) => {
+    if (! records.length) {
+      throw Error("No records");
+    }
+    return records;
+  })
+  .then((records) => {
     return new Promise((res) => {
       AWS.config.update({
         region: "us-east-1",
@@ -94,7 +100,7 @@ module.exports.hello = (event, context, callback) => {
           body: formData
         })
         .then((res) => {
-          console.log("Monzo response", token);
+          console.log("Monzo token", token);
           return res;
         })
         .then((res) => record)
@@ -119,13 +125,17 @@ module.exports.hello = (event, context, callback) => {
   })
   .then(() => {
     callback(null, { message: 'Success' });
+  })
+  .catch((e) => {
+    console.log(e);
+    callback(null, { message: 'Success' });
   });
 };
 
 const generateReward = (duration) => {
   const rand = Math.random();
   const cutoff = probabilityMap[duration] ? probabilityMap[duration] : 0.05;
-  return 396;
+  return 1;
   if (rand < cutoff) {
     const pence = Math.round(Math.random() * 400);
     return pence;
