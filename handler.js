@@ -135,7 +135,6 @@ module.exports.hello = (event, context, callback) => {
 const generateReward = (duration) => {
   const rand = Math.random();
   const cutoff = probabilityMap[duration] ? probabilityMap[duration] : 0.05;
-  return 1;
   if (rand < cutoff) {
     const pence = Math.round(Math.random() * 400);
     return pence;
