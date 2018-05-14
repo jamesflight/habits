@@ -63,6 +63,7 @@ module.exports.hello = (event, context, callback) => {
           })
           .then((res) => res.json())
           .then((json) => {
+            console.log("dynamo json", json);
             docClient.update({
                   TableName: "MonzoRefreshToken",
                   Key:{
@@ -93,7 +94,7 @@ module.exports.hello = (event, context, callback) => {
           body: formData
         })
         .then((res) => {
-          console.log("Monzo response", formData);
+          console.log("Monzo response", token);
           return res;
         })
         .then((res) => record)
@@ -119,67 +120,12 @@ module.exports.hello = (event, context, callback) => {
   .then(() => {
     callback(null, { message: 'Success' });
   });
-
-  // var promise = new Promise((res) => {
-  //   AWS.config.update({
-  //     region: "us-east-1",
-  //   });
-    
-  //   var docClient = new AWS.DynamoDB.DocumentClient();
-  
-  //   docClient.get({
-  //       TableName: "MonzoRefreshToken",
-  //       Key:{
-  //           "user_id": 1,
-  //       }
-  //   }, function(err, data) {
-  //       if (err) {
-  //           console.error("Unable to read item. Error JSON:", JSON.stringify(err, null, 2));
-  //       } else {
-  //           console.log("GetItem succeeded:", JSON.stringify(data, null, 2));
-  //       }
-  //       const formData = new url.URLSearchParams();
-  //       formData.append('grant_type', "refresh_token");
-  //       formData.append('client_id', process.env.MONZO_CLIENT_ID);
-  //       formData.append('client_secret', process.env.MONZO_CLIENT_SECRET);
-  //       formData.append('refresh_token', data.Item.refresh_token);
-  //       return fetch("https://api.monzo.com/oauth2/token", {
-  //           method: 'POST',
-  //           body: formData
-  //       })
-  //       .then((res) => res.json())
-  //       .then((json) => {
-  //         console.log("json", json)
-  //         docClient.update({
-  //               TableName: "MonzoRefreshToken",
-  //               Key:{
-  //                   "user_id": 1,
-  //               },
-  //               UpdateExpression: "set refresh_token = :t",
-  //               ExpressionAttributeValues:{
-  //                   ":t": json.refresh_token,
-  //               },
-  //               ReturnValues:"UPDATED_NEW"
-  //           }, (err, data) => {
-  //             console.log(err, data);
-  //             res(json.access_token);
-  //           })
-  //       });
-  //   });
-  // })
-  // .then((res) => {
-  //   console.log('result', res)
-  //   callback(null, { message: 'Success' });
-  // })
-  
-
-  // Use this code if you don't use the http event with the LAMBDA-PROXY integration
-  // callback(null, { message: 'Go Serverless v1.0! Your function executed successfully!', event });
 };
 
 const generateReward = (duration) => {
   const rand = Math.random();
   const cutoff = probabilityMap[duration] ? probabilityMap[duration] : 0.05;
+  return 396;
   if (rand < cutoff) {
     const pence = Math.round(Math.random() * 400);
     return pence;
