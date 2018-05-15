@@ -58,7 +58,7 @@ module.exports.hello = (event, context, callback) => {
               "user_id": 1,
           }
       }, function(err, data) {
-          console.log("dynamo db data", data);
+          console.log("dynamo db data", err, data);
           const formData = new url.URLSearchParams();
           formData.append('grant_type', "refresh_token");
           formData.append('client_id', process.env.MONZO_CLIENT_ID);
