@@ -4,12 +4,20 @@ const bluebird = require('bluebird');
 const url = require('url');
 var AWS = require("aws-sdk");
 
-const probabilityMap = {
+const habitProbabilityMap = {
   "default": 0.05,
   "10 - 20 mins": 0.1,
   "20 - 30 mins": 0.15,
   "30 - 40 mins": 0.2,
   "40+ mins": 0.25,
+}
+
+const lowPriorityHabitProbabilityMap = {
+  "default": 0.0025,
+  "10 - 20 mins": 0.05,
+  "20 - 30 mins": 0.075,
+  "30 - 40 mins": 0.1,
+  "40+ mins": 0.125,
 }
 
 module.exports.hello = (event, context, callback) => {
@@ -19,11 +27,26 @@ module.exports.hello = (event, context, callback) => {
     }
   }).then((response) => {
     return response.json(); 
-  }).then((json) => {
-    console.log(json.records);
+  })
+  .then((json) => {
+    return R.filter((record) => (record.fields.Habit || record.fields["Low Priority Habit"] || record.fields["Daily Habit"]) && record.fields["Time Spent"], json.records);
+  })
+  .then((records) => {
+    if (! records.length) {
+      throw Error("No records");
+    }
+    return records;
+  })
+  .then((records) => {
     return R.map((record) => {
-      return R.assocPath(['fields', 'Reward'], generateReward(record.fields['Time Spent']), record);
-    }, R.reject((record) => ! record.fields.Habit || ! record.fields["Time Spent"], json.records));
+      const highReward = generateReward(record.fields['Time Spent']);
+      const lowReward = generateLowPriorityReward(record.fields['Time Spent']);
+      return R.assocPath(
+        ['fields', 'Reward'],
+        record.fields.Habit ? highReward : lowReward,
+        record
+      )
+    }, records);
   })
   .then((records) => {
     return bluebird.all(R.map((record) => {
@@ -37,12 +60,6 @@ module.exports.hello = (event, context, callback) => {
       })
     }, records))
     .then(() => records);
-  })
-  .then((records) => {
-    if (! records.length) {
-      throw Error("No records");
-    }
-    return records;
   })
   .then((records) => {
     return new Promise((res) => {
@@ -135,9 +152,19 @@ module.exports.hello = (event, context, callback) => {
 
 const generateReward = (duration) => {
   const rand = Math.random();
-  const cutoff = probabilityMap[duration] ? probabilityMap[duration] : probabilityMap.default;
+  const cutoff = habitProbabilityMap[duration] ? habitProbabilityMap[duration] : habitProbabilityMap.default;
   if (rand < cutoff) {
     const pence = Math.round(Math.random() * 400);
+    return pence;
+  }
+  return 0;
+}
+
+const generateLowPriorityReward = (duration) => {
+  const rand = Math.random();
+  const cutoff = lowPriorityHabitProbabilityMap[duration] ? lowPriorityHabitProbabilityMap[duration] : lowPriorityHabitProbabilityMap.default;
+  if (rand < cutoff) {
+    const pence = Math.round(Math.random() * 200);
     return pence;
   }
   return 0;
