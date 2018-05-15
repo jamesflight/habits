@@ -58,6 +58,7 @@ module.exports.hello = (event, context, callback) => {
               "user_id": 1,
           }
       }, function(err, data) {
+          console.log("dynamo db data", data);
           const formData = new url.URLSearchParams();
           formData.append('grant_type', "refresh_token");
           formData.append('client_id', process.env.MONZO_CLIENT_ID);
@@ -134,7 +135,7 @@ module.exports.hello = (event, context, callback) => {
 
 const generateReward = (duration) => {
   const rand = Math.random();
-  const cutoff = probabilityMap[duration] ? probabilityMap[duration] : 0.05;
+  const cutoff = probabilityMap[duration] ? probabilityMap[duration] : probabilityMap.default;
   if (rand < cutoff) {
     const pence = Math.round(Math.random() * 400);
     return pence;
