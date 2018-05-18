@@ -5,19 +5,19 @@ const url = require('url');
 var AWS = require("aws-sdk");
 
 const habitProbabilityMap = {
+  "default": 0.1,
+  "10 - 20 mins": 0.2,
+  "20 - 30 mins": 0.3,
+  "30 - 40 mins": 0.4,
+  "40+ mins": 0.5,
+}
+
+const lowPriorityHabitProbabilityMap = {
   "default": 0.05,
   "10 - 20 mins": 0.1,
   "20 - 30 mins": 0.15,
   "30 - 40 mins": 0.2,
   "40+ mins": 0.25,
-}
-
-const lowPriorityHabitProbabilityMap = {
-  "default": 0.0025,
-  "10 - 20 mins": 0.05,
-  "20 - 30 mins": 0.075,
-  "30 - 40 mins": 0.1,
-  "40+ mins": 0.125,
 }
 
 module.exports.hello = (event, context, callback) => {
